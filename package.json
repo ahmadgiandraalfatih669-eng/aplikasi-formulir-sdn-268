@@ -1,0 +1,37 @@
+{
+  "name": "sdn268-formulir",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run build --workspace @sdn268/shared && npm run build --workspace @sdn268/ui && concurrently -k -n API,WEB -c blue,green \"npm run dev --workspace @sdn268/api\" \"npm run dev --workspace @sdn268/web\"",
+    "build": "npm run build --workspace @sdn268/shared && npm run build --workspace @sdn268/ui && npm run build --workspace @sdn268/api && npm run build --workspace @sdn268/web",
+    "lint": "npm run lint --workspace @sdn268/shared && npm run lint --workspace @sdn268/ui && npm run lint --workspace @sdn268/api && npm run lint --workspace @sdn268/web",
+    "typecheck": "npm run build --workspace @sdn268/shared && npm run build --workspace @sdn268/ui && npm run typecheck --workspace @sdn268/shared && npm run typecheck --workspace @sdn268/ui && npm run typecheck --workspace @sdn268/api && npm run typecheck --workspace @sdn268/web",
+    "test": "npm run build --workspace @sdn268/shared && npm run test --workspace @sdn268/shared && npm run test --workspace @sdn268/api",
+    "test:e2e": "npm run build --workspace @sdn268/shared && npm run build --workspace @sdn268/ui && npm run test:e2e --workspace @sdn268/web",
+    "db:migrate": "npm run db:migrate --workspace @sdn268/api",
+    "db:seed": "npm run db:seed --workspace @sdn268/api"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "concurrently": "^9.1.2",
+    "globals": "^15.14.0",
+    "typescript-eslint": "^8.19.1",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=20.11"
+  },
+  "allowScripts": {
+    "@prisma/client@6.19.3": true,
+    "argon2@0.41.1": true,
+    "unrs-resolver@1.12.2": true,
+    "esbuild@0.28.2": true,
+    "esbuild@0.21.5": true,
+    "prisma@6.19.3": true,
+    "@prisma/engines@6.19.3": true
+  }
+}

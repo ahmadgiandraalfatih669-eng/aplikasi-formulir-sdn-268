@@ -1,0 +1,293 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum FormStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  ARCHIVED
+}
+
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+}
+
+enum GradeStatus {
+  NOT_GRADED
+  AUTO_GRADED
+  NEEDS_REVIEW
+  GRADED
+  RETURNED
+}
+
+enum SyncStatus {
+  PENDING
+  SYNCED
+  FAILED
+  CONFLICT
+}
+
+model User {
+  id               String        @id @default(uuid()) @db.Uuid
+  email            String?       @unique
+  name             String
+  role             Role
+  status           AccountStatus @default(ACTIVE)
+  googleSubjectId  String?       @unique
+  passwordHash     String?
+  lastLoginAt      DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  deletedAt        DateTime?
+  studentProfile  StudentProfile?
+  authoredForms    Form[]        @relation("FormAuthor")
+  submissions      Submission[]  @relation("StudentSubmissions")
+  auditLogs        AuditLog[]
+  refreshTokens    RefreshToken[]
+  teacherProfile   TeacherProfile?
+}
+
+model StudentProfile {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @unique @db.Uuid
+  studentLoginId    String   @unique
+  nisnHash          String   @unique
+  nisnMasked        String
+  firstLogin        Boolean  @default(true)
+  classId           String?  @db.Uuid
+  recordVersion     Int      @default(1)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  deletedAt         DateTime?
+  user              User     @relation(fields: [userId], references: [id])
+  schoolClass       SchoolClass? @relation(fields: [classId], references: [id])
+  memberships       ClassMembership[]
+  assignments       FormAssignment[]
+
+  @@index([classId, deletedAt])
+}
+
+model TeacherProfile {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @unique @db.Uuid
+  employeeId  String?  @unique
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model AllowedGoogleDomain {
+  id        String   @id @default(uuid()) @db.Uuid
+  domain    String   @unique
+  createdAt DateTime @default(now())
+}
+
+model AllowedGoogleAccount {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique
+  role      Role
+  createdAt DateTime @default(now())
+}
+
+model AcademicYear {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  active    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  classes   SchoolClass[]
+  semesters Semester[]
+}
+
+model Semester {
+  id            String   @id @default(uuid()) @db.Uuid
+  academicYearId String  @db.Uuid
+  name          String
+  startAt       DateTime?
+  endAt         DateTime?
+  academicYear  AcademicYear @relation(fields: [academicYearId], references: [id])
+
+  @@unique([academicYearId, name])
+}
+
+model SchoolClass {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String
+  academicYearId String  @db.Uuid
+  createdAt     DateTime @default(now())
+  academicYear  AcademicYear @relation(fields: [academicYearId], references: [id])
+  students      StudentProfile[]
+  memberships   ClassMembership[]
+  assignments   FormAssignment[]
+
+  @@unique([name, academicYearId])
+}
+
+model ClassMembership {
+  id        String         @id @default(uuid()) @db.Uuid
+  studentId String         @db.Uuid
+  classId   String         @db.Uuid
+  createdAt DateTime       @default(now())
+  student   StudentProfile @relation(fields: [studentId], references: [id])
+  schoolClass SchoolClass  @relation(fields: [classId], references: [id])
+
+  @@unique([studentId, classId])
+}
+
+model Form {
+  id          String        @id @default(uuid()) @db.Uuid
+  authorId    String        @db.Uuid
+  title       String
+  description String        @default("")
+  status      FormStatus    @default(DRAFT)
+  quizMode    Boolean       @default(false)
+  passingGrade Float?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
+  author      User          @relation("FormAuthor", fields: [authorId], references: [id])
+  versions    FormVersion[]
+  assignments FormAssignment[]
+
+  @@index([authorId, status])
+}
+
+model FormVersion {
+  id            String       @id @default(uuid()) @db.Uuid
+  formId        String       @db.Uuid
+  versionNumber Int
+  status        FormStatus   @default(DRAFT)
+  schema        Json
+  createdAt     DateTime     @default(now())
+  form          Form         @relation(fields: [formId], references: [id])
+  submissions   Submission[]
+
+  @@unique([formId, versionNumber])
+}
+
+model FormAssignment {
+  id        String   @id @default(uuid()) @db.Uuid
+  formId    String   @db.Uuid
+  classId   String?  @db.Uuid
+  studentId String?  @db.Uuid
+  createdAt DateTime @default(now())
+  form      Form     @relation(fields: [formId], references: [id])
+  schoolClass SchoolClass? @relation(fields: [classId], references: [id])
+  student   StudentProfile? @relation(fields: [studentId], references: [id])
+
+  @@index([classId, studentId])
+  @@unique([formId, classId])
+  @@unique([formId, studentId])
+}
+
+model Submission {
+  id             String           @id @default(uuid()) @db.Uuid
+  formVersionId  String           @db.Uuid
+  studentId      String           @db.Uuid
+  attemptNumber  Int              @default(1)
+  status         SubmissionStatus @default(DRAFT)
+  syncStatus     SyncStatus       @default(SYNCED)
+  clientMutationId String         @unique @db.Uuid
+  answers        Json
+  earnedScore    Float?
+  maximumScore   Float?
+  percentage     Float?
+  gradeStatus    GradeStatus      @default(NOT_GRADED)
+  submittedAt    DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  recordVersion  Int              @default(1)
+  formVersion    FormVersion      @relation(fields: [formVersionId], references: [id])
+  student        User             @relation("StudentSubmissions", fields: [studentId], references: [id])
+  grade          Grade?
+  revisions      GradeRevision[]
+
+  @@unique([formVersionId, studentId, attemptNumber])
+  @@index([studentId, status])
+}
+
+model Grade {
+  id           String      @id @default(uuid()) @db.Uuid
+  submissionId String      @unique @db.Uuid
+  earnedScore  Float
+  maximumScore Float
+  feedback     String?
+  releasedAt   DateTime?
+  gradedById   String      @db.Uuid
+  updatedAt    DateTime    @updatedAt
+  submission   Submission  @relation(fields: [submissionId], references: [id])
+}
+
+model GradeRevision {
+  id           String     @id @default(uuid()) @db.Uuid
+  submissionId String     @db.Uuid
+  actorId      String     @db.Uuid
+  previous     Json
+  next         Json
+  reason       String
+  createdAt    DateTime   @default(now())
+  submission  Submission @relation(fields: [submissionId], references: [id])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, revokedAt])
+}
+
+model AuditLog {
+  id           String   @id @default(uuid()) @db.Uuid
+  actorId      String?  @db.Uuid
+  action       String
+  resourceType String
+  resourceId   String?
+  metadata     Json?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  actor        User?    @relation(fields: [actorId], references: [id])
+
+  @@index([createdAt, action])
+}
+
+model SyncMutation {
+  id               String     @id @default(uuid()) @db.Uuid
+  clientMutationId String     @unique @db.Uuid
+  studentId        String     @db.Uuid
+  status           SyncStatus @default(PENDING)
+  result            Json?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([studentId, status])
+}
+
+model AppSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}

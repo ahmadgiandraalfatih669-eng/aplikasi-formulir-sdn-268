@@ -1,0 +1,16 @@
+{
+  "id": "/",
+  "name": "Sistem Formulir SDN 268 Panyileukan",
+  "short_name": "Form SDN 268",
+  "description": "Formulir, kuis, dan penilaian sekolah.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f4f7fb",
+  "theme_color": "#1d4ed8",
+  "icons": [
+    { "src": "/logo-sdn-268.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/logo-sdn-268.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
