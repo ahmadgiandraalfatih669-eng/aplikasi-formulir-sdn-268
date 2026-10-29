@@ -11,3 +11,4 @@ test-results/
 .vscode/
 *.log
 *.tsbuildinfo
+firebase-debug.log
