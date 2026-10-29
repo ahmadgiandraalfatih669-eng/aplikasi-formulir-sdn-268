@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "export",
+  ...(process.env.NODE_ENV === "production" ? { output: "export" as const } : {}),
   distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",
   images: {
     unoptimized: true,
