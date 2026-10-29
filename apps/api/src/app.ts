@@ -943,8 +943,15 @@ app.get("/api/v1/forms", authenticate, requireInitialPasswordChanged, async (req
     orderBy: { updatedAt: "desc" },
   });
 
+  const submittedFormIds = req.user!.role === "STUDENT"
+    ? new Set((await prisma.submission.findMany({
+      where: { studentId: req.user!.id, status: "SUBMITTED", formVersion: { formId: { in: forms.map((form) => form.id) } } },
+      select: { formVersion: { select: { formId: true } } },
+    })).map((submission) => submission.formVersion.formId))
+    : new Set<string>();
   const data = forms.map(({ versions, ...form }) => ({
     ...form,
+    ...(req.user!.role === "STUDENT" ? { submitted: submittedFormIds.has(form.id) } : {}),
     currentVersion: versions[0]
       ? { id: versions[0].id, versionNumber: versions[0].versionNumber, schema: req.user!.role === "STUDENT" ? publicSchema(versions[0].schema) : versions[0].schema }
       : null,

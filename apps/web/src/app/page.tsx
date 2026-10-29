@@ -1444,6 +1444,9 @@ function FormFiller({ form, online, ownerUserId, syncRevision, onBack, onSynced 
         }
         if (!active) return;
         setSubmissionLocked(submission.submitted);
+        if (submission.submitted) {
+          setStatus(`Jawaban untuk "${form.title}" sudah tersimpan. Formulir ini tidak dapat dikerjakan ulang.`);
+        }
         if (submission.submitted && form.quizMode) {
           setScoreResult({
             earnedScore: submission.earnedScore ?? null,
@@ -1664,8 +1667,8 @@ function FormFiller({ form, online, ownerUserId, syncRevision, onBack, onSynced 
       const alreadySubmitted = cause instanceof ApiError && cause.status === 409 && message.includes("FORM_ALREADY_SUBMITTED");
       if (alreadySubmitted) {
         setSubmissionLocked(true);
-        setStatus("Jawaban sudah terkirim dan dikunci");
-        setError("");
+        setStatus(`Jawaban untuk "${form.title}" sudah tersimpan. Formulir ini tidak dapat dikerjakan ulang.`);
+        setError(`Pemberitahuan: jawaban untuk "${form.title}" sudah tersimpan sebelumnya dan tidak dapat dikirim atau dikerjakan ulang.`);
         try {
           await offlineDb.draftSubmissions.delete(form.id);
         } catch {
@@ -2084,14 +2087,26 @@ export default function Home() {
                 {forms.filter((form) => isStudent ? form.status === "PUBLISHED" : true).map((form) => (
                   <article
                     key={form.id}
-                    className={`ds-card ds-card-interactive flex flex-col p-5 ${!isStudent ? "cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500" : ""}`}
+                    className={`ds-card flex flex-col p-5 ${form.submitted ? "opacity-80" : "ds-card-interactive"} ${!isStudent ? "cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500" : ""}`}
                     onClick={!isStudent ? () => setPreviewForm(form) : undefined}
                   >
                     <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 text-school-700"><FileText size={23} /></div>
                     <div className="flex-1"><h3 className="text-xl font-black">{form.title}</h3><p className="mt-2 line-clamp-3 text-sm text-[var(--ds-text-secondary)]">{form.description}</p><p className="mt-3 text-sm font-semibold text-[var(--ds-text-muted)]">{form.currentVersion?.schema.questions.length ?? 0} pertanyaan</p></div>
                     {!isStudent && <span className={`mt-3 w-fit rounded-full px-3 py-1 text-xs font-bold ${form.status === "PUBLISHED" ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-700"}`}>{form.status === "PUBLISHED" ? "Dipublikasikan" : "Draf"}</span>}
+                    {isStudent && form.submitted && <span className="ds-status ds-status-success mt-3 w-fit">Sudah tersimpan · tidak dapat dikerjakan ulang</span>}
                     {isStudent ? (
-                      <Button disabled={!form.currentVersion} onClick={() => setSelected(form)}><CheckCircle2 size={18} />Kerjakan</Button>
+                      <Button
+                        disabled={!form.currentVersion || form.submitted}
+                        onClick={() => {
+                          if (form.submitted) {
+                            setSyncMessage(`Jawaban untuk "${form.title}" sudah tersimpan. Formulir yang sama tidak dapat dikerjakan ulang.`);
+                            return;
+                          }
+                          setSelected(form);
+                        }}
+                      >
+                        <CheckCircle2 size={18} />{form.submitted ? "Sudah tersimpan" : "Kerjakan"}
+                      </Button>
                     ) : (
                       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm text-[var(--ds-text-secondary)]">
                         <span>{form.quizMode ? "Mode kuis aktif" : "Formulir biasa"} · versi {form.currentVersion?.versionNumber ?? "-"}</span>

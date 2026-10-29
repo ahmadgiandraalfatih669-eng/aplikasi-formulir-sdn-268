@@ -9,6 +9,7 @@ export type CachedForm = {
   description: string;
   status: string;
   quizMode: boolean;
+  submitted?: boolean;
   currentVersion: { id: string; versionNumber: number; schema: { questions: Array<{
     id: string;
     type: "SHORT_TEXT" | "PARAGRAPH" | "NUMBER" | "SINGLE_CHOICE" | "MULTIPLE_CHOICE" | "DROPDOWN" | "MATRIX";
